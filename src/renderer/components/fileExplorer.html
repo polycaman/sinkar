@@ -1,0 +1,95 @@
+<div
+  x-data="fileExplorerLogic()"
+  x-init="init()"
+  class="h-100 d-flex flex-column"
+>
+  <div class="px-3 py-2 border-bottom">
+    <div class="d-flex align-items-center justify-content-between mb-1">
+      <strong class="small">Articles</strong>
+      <span
+        class="spinner-border spinner-border-sm"
+        role="status"
+        x-show="loading"
+      ></span>
+    </div>
+    <div class="d-flex gap-2">
+      <button
+        class="btn btn-sm btn-outline-secondary"
+        @click="refresh"
+        :disabled="loading || !repoName"
+      >
+        Refresh
+      </button>
+      <button
+        class="btn btn-sm btn-primary"
+        @click="startCreate"
+        :disabled="!repoName || loading || creating"
+      >
+        New Article
+      </button>
+    </div>
+  </div>
+  <template x-if="creating">
+    <div class="px-3 py-2 border-bottom bg-light">
+      <form
+        @submit.prevent="confirmCreate"
+        class="d-flex gap-2 align-items-center"
+      >
+        <input
+          type="text"
+          class="form-control form-control-sm"
+          x-model="newArticleName"
+          placeholder="my-post.md"
+        />
+        <button
+          type="submit"
+          class="btn btn-sm btn-success"
+          :disabled="!newArticleName.trim()"
+        >
+          Create
+        </button>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-secondary"
+          @click="cancelCreate"
+        >
+          Cancel
+        </button>
+      </form>
+    </div>
+  </template>
+  <template x-if="!repoName">
+    <div class="p-3 text-muted small">
+      Clone or set repository to manage articles.
+    </div>
+  </template>
+  <template x-if="repoName && articles.length === 0 && !loading">
+    <div class="p-3 text-muted small">No articles yet. Create one!</div>
+  </template>
+  <ul
+    class="list-unstyled flex-grow-1 mb-0 overflow-auto"
+    x-show="repoName && articles.length > 0"
+  >
+    <template x-for="a in articles" :key="a">
+      <li
+        class="px-3 py-1 border-bottom small d-flex justify-content-between align-items-center"
+      >
+        <span
+          class="flex-grow-1"
+          @click="openArticle(a)"
+          style="cursor: pointer"
+          x-text="a"
+        ></span>
+        <button
+          class="btn btn-sm btn-outline-light text-muted"
+          @click="openArticle(a)"
+        >
+          Edit
+        </button>
+      </li>
+    </template>
+  </ul>
+  <div class="px-3 py-1 small text-muted border-top" x-show="repoName">
+    Repo: <span x-text="repoName"></span>
+  </div>
+</div>
