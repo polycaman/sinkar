@@ -28,13 +28,28 @@ function articleEditorLogic() {
         if (typeof data === "string") {
           this.content = data;
           this.originalContent = data;
+          window.dispatchEvent(
+            new CustomEvent("article:content-changed", {
+              detail: { filename: this.filename, content: this.content },
+            })
+          );
         } else if (data && data.error) {
           this.content = `Error loading file: ${data.error}`;
           this.originalContent = this.content;
+          window.dispatchEvent(
+            new CustomEvent("article:content-changed", {
+              detail: { filename: this.filename, content: this.content },
+            })
+          );
         }
       } catch (e: any) {
         this.content = `Error: ${e.message}`;
         this.originalContent = this.content;
+        window.dispatchEvent(
+          new CustomEvent("article:content-changed", {
+            detail: { filename: this.filename, content: this.content },
+          })
+        );
       } finally {
         this.loading = false;
       }
@@ -59,6 +74,14 @@ function articleEditorLogic() {
       } finally {
         this.saving = false;
       }
+    },
+    notifyChange() {
+      if (!this.filename) return;
+      window.dispatchEvent(
+        new CustomEvent("article:content-changed", {
+          detail: { filename: this.filename, content: this.content },
+        })
+      );
     },
   };
 }
