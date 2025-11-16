@@ -1,0 +1,16 @@
+<div x-data="previewerLogic()" x-init="init()" class="border-top pt-2">
+  <template x-if="!activeFilename">
+    <div class="text-muted small">No file open.</div>
+  </template>
+  <template x-if="activeFilename">
+    <div>
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <strong class="small" x-text="activeFilename"></strong>
+        <span class="badge bg-secondary">Preview</span>
+      </div>
+      <div class="small" style="max-height: 180px; overflow: auto">
+        <div x-ref="preview" x-html="rendered"></div>
+      </div>
+    </div>
+  </template>
+</div>
