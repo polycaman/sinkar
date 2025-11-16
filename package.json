@@ -1,0 +1,33 @@
+{
+  "name": "electron-git-app",
+  "version": "1.0.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "build": "tsc -p . && copyfiles -u 2 \"src/renderer/**/*.html\" dist/renderer",
+    "dev": "tsc -w"
+  },
+  "dependencies": {
+    "electron": "^25.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "copyfiles": "^2.4.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/electron-git-app.git"
+  },
+  "keywords": [
+    "electron",
+    "git",
+    "application"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/electron-git-app/issues"
+  },
+  "homepage": "https://github.com/yourusername/electron-git-app#readme"
+}

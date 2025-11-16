@@ -1,0 +1,35 @@
+node_modules/
+/dist/
+/out/
+/release/
+*.tsbuildinfo
+*.asar
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+coverage/
+/*.lcov
+.cache/
+tmp/
+.temp/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Local cloned repositories placeholder (add names below as needed)
+# e.g. my-cloned-repo/
+
+# Articles directory is part of cloned repos; do not ignore per app feature.
+# Uncomment if you want to exclude article content from commits:
+# articles/
+
+# Ignore private experimental folder
+privv/
