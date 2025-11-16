@@ -1,6 +1,6 @@
 {
-  "name": "electron-git-app",
-  "version": "1.0.0",
+  "name": "sinkar",
+  "version": "0.1.0",
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run build && electron .",
@@ -17,17 +17,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/electron-git-app.git"
+    "url": "git+https://github.com/polycaman/sinkar.git"
   },
   "keywords": [
     "electron",
     "git",
     "application"
   ],
-  "author": "Your Name",
+  "author": "Polyca Games",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/yourusername/electron-git-app/issues"
+    "url": "https://github.com/polycaman/sinkar/issues"
   },
-  "homepage": "https://github.com/yourusername/electron-git-app#readme"
+  "homepage": "https://github.com/polycaman/sinkar"
 }
