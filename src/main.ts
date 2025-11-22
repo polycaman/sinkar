@@ -5,11 +5,30 @@ import { GitService } from "./services/gitService";
 const gitService = new GitService();
 
 function createWindow() {
+  // Create splash window
+  const splash = new BrowserWindow({
+    width: 400,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    icon: join(__dirname, "icon.png"),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    }
+  });
+  
+  splash.loadFile(join(__dirname, "splash.html"));
+  splash.show(); // Ensure it's shown immediately
+
+  // Create main window (hidden initially)
   const win = new BrowserWindow({
     width: 900,
     height: 700,
     icon: join(__dirname, "icon.png"),
     autoHideMenuBar: true,
+    show: false, // Don't show until ready
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -36,6 +55,15 @@ function createWindow() {
   });
 
   win.loadFile(join(__dirname, "renderer", "index.html")).catch(() => {});
+
+  // Wait for main window to be ready
+  win.once('ready-to-show', () => {
+    // Keep splash screen for at least 2 seconds to show the animation
+    setTimeout(() => {
+      splash.close();
+      win.show();
+    }, 2500);
+  });
 }
 
 app.whenReady().then(createWindow);

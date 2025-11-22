@@ -4,16 +4,42 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run build && electron .",
-    "build": "tsc -p . && copyfiles -u 2 \"src/renderer/**/*.html\" dist/renderer && copyfiles -f src/icon.* dist",
+    "build": "tsc -p . && copyfiles -u 2 \"src/renderer/**/*.html\" dist/renderer && copyfiles -f src/icon.* dist && copyfiles -f src/splash.html dist",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
     "dev": "tsc -w"
   },
-  "dependencies": {
-    "electron": "^25.0.0"
+  "build": {
+    "appId": "com.polycagames.sinkar",
+    "productName": "Sinkar",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "dist/icon.png"
+    },
+    "linux": {
+      "target": [
+        "deb",
+        "tar.gz"
+      ],
+      "icon": "dist/icon.png",
+      "category": "Development"
+    }
   },
+  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.0.0",
+    "electron": "^25.0.0",
     "@types/node": "^20.0.0",
-    "copyfiles": "^2.4.1"
+    "copyfiles": "^2.4.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.0.0"
   },
   "repository": {
     "type": "git",
