@@ -1,6 +1,6 @@
 {
   "name": "sinkar",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run build && electron .",
@@ -26,7 +26,6 @@
     },
     "linux": {
       "target": [
-        "deb",
         "tar.gz"
       ],
       "icon": "dist/icon.png",
