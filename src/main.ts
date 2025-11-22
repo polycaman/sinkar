@@ -8,6 +8,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 900,
     height: 700,
+    icon: join(__dirname, "icon.png"),
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,

@@ -1,10 +1,10 @@
 {
   "name": "sinkar",
-  "version": "0.2.0",
+  "version": "0.2.5",
   "main": "dist/main.js",
   "scripts": {
     "start": "npm run build && electron .",
-    "build": "tsc -p . && copyfiles -u 2 \"src/renderer/**/*.html\" dist/renderer",
+    "build": "tsc -p . && copyfiles -u 2 \"src/renderer/**/*.html\" dist/renderer && copyfiles -f src/icon.* dist",
     "dev": "tsc -w"
   },
   "dependencies": {

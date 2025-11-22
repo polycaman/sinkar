@@ -1,108 +1,45 @@
 (window as any).SinkarGenerators = (window as any).SinkarGenerators || {};
-(window as any).SinkarGenerators.Themes = (window as any).SinkarGenerators.Themes || {};
+(window as any).SinkarGenerators.StoreTheme = (window as any).SinkarGenerators.StoreTheme || {};
 
-const StoreTheme = {
-  id: "store",
-
-  generateHtml(config: any): string {
-    const { CommonHtmlHead, CommonHtmlFooter } = (window as any).SinkarGenerators.Common;
-    const title = config.siteTitle || "My Site";
-    const bodyContent = `
-<header>
-    <div class="header-inner">
-        <h1><a href="index.html">${title}</a></h1>
-        <nav>
-            <a href="index.html">Shop</a>
-            <a href="?view=cart" id="nav-cart-count">Cart (0)</a>
-        </nav>
-    </div>
-</header>
-<div id="view-container">
-    <!-- Content injected here -->
-</div>`;
-    return CommonHtmlHead(title, "store") + bodyContent + CommonHtmlFooter;
-  },
-
-  generateCss(config: any): string {
-    const { CommonCss } = (window as any).SinkarGenerators.Common;
-    const PALETTES = (window as any).SinkarGenerators.PALETTES;
-    const p = PALETTES[config.paletteId] || PALETTES.default;
-    
-    const themeCss = `
-        header { background: var(--surface); padding: 1.5rem 0; box-shadow: var(--shadow-sm); position: sticky; top: 0; z-index: 50; }
-        .header-inner { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-        header h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; }
-        header h1 a { color: var(--text); }
-        header nav a { color: var(--text); margin-left: 1.5rem; font-weight: 500; }
-        
-        #hero { 
-            background: var(--surface); 
-            padding: 6rem 1.5rem; 
-            text-align: center; 
-            margin-bottom: 3rem;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-        }
-        #hero h2 { font-size: clamp(2rem, 5vw, 3.5rem); margin: 0 0 1.5rem; line-height: 1.1; color: var(--text); }
-        #hero button {
-            background: var(--primary); color: var(--bg); border: none; padding: 1rem 2rem;
-            font-size: 1.1rem; font-weight: 600; border-radius: var(--radius); cursor: pointer;
-            transition: transform 0.2s;
-        }
-        #hero button:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-
-        #app { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 4rem; }
-        #article-list { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); 
-            gap: 2rem; 
-        }
-        .article-card {
-            background: var(--surface); border-radius: var(--radius); overflow: hidden;
-            box-shadow: var(--shadow-sm); transition: all 0.3s; border: 1px solid rgba(0,0,0,0.05);
-            display: flex; flex-direction: column;
-        }
-        .article-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
-        .product-image-placeholder {
-            height: 200px; background: color-mix(in srgb, var(--primary), transparent 90%);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary); font-size: 3rem;
-        }
-        .card-body { padding: 1.5rem; flex-grow: 1; display: flex; flex-direction: column; }
-        .article-card h4 { margin: 0 0 0.5rem; font-size: 1.2rem; }
-        .article-card h4 a { color: var(--text); }
-        .price-tag { font-size: 1.25rem; font-weight: bold; color: var(--text); margin-bottom: 1rem; display: block; }
-        .btn-buy {
-            margin-top: auto; background: var(--text); color: var(--bg); text-align: center;
-            padding: 0.75rem; border-radius: var(--radius); font-weight: 600; display: block;
-        }
-        .btn-buy:hover { background: var(--primary); color: white; text-decoration: none; }
-
-        /* Product Detail */
-        .product-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-top: 2rem; }
-        .product-detail-image { 
-            background: color-mix(in srgb, var(--primary), transparent 90%); 
-            border-radius: var(--radius); 
-            aspect-ratio: 1; 
-            display: flex; align-items: center; justify-content: center;
-            font-size: 5rem; color: var(--primary);
-        }
-        .product-detail-info h1 { font-size: 2.5rem; margin: 0 0 1rem; line-height: 1.1; }
-        .product-detail-price { font-size: 2rem; font-weight: bold; color: var(--primary); margin-bottom: 2rem; }
-        .product-detail-desc { font-size: 1.1rem; opacity: 0.8; margin-bottom: 2rem; }
-        .btn-add-cart { 
-            background: var(--primary); color: white; border: none; padding: 1rem 3rem; 
-            font-size: 1.2rem; border-radius: var(--radius); cursor: pointer; width: 100%;
-        }
-        @media(max-width: 768px) { .product-detail { grid-template-columns: 1fr; } }
-    `;
-    return CommonCss(config, p) + themeCss;
-  },
-
-  generateJs(config: any, preloadedArticles: any[] | null): string {
-    const { CommonJsHelpers } = (window as any).SinkarGenerators.Common;
+(window as any).SinkarGenerators.StoreTheme.generateJs = function(config: any, preloadedArticles: any[] | null): string {
     const description = config.siteDescription.replace(/"/g, '\\"');
     const storeEmail = config.storeEmail ? config.storeEmail.replace(/"/g, '\\"') : '';
     const articlesJson = preloadedArticles ? JSON.stringify(preloadedArticles) : 'null';
+
+    const CommonJsHelpers = `
+function fixAssetPath(path, articleFilename) {
+    if (!path) return path;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    
+    // If path is relative "assets/..." and article is a folder (no .md extension)
+    if (path.startsWith('assets/') && !articleFilename.endsWith('.md')) {
+        return 'articles/' + articleFilename + '/' + path;
+    }
+    return path;
+}
+
+function parseFrontmatter(text) {
+    const match = text.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n([\\s\\S]*)$/);
+    if (match) {
+        const yamlText = match[1];
+        const body = match[2];
+        const metadata = {};
+        
+        yamlText.split(/\\r?\\n/).forEach(line => {
+            const parts = line.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/[\\x00-\\x1F\\x7F-\\x9F\\u200B]/g, "").trim();
+                const value = parts.slice(1).join(':').trim();
+                if (key) {
+                    metadata[key] = value;
+                }
+            }
+        });
+        return { metadata, body };
+    }
+    return { metadata: {}, body: text };
+}
+`;
 
     return `
 const CURRENT_THEME = "store";
@@ -481,8 +418,4 @@ async function loadArticlesList() {
 
 document.addEventListener('DOMContentLoaded', init);
 `;
-  }
 };
-
-(window as any).SinkarGenerators.Themes.store = StoreTheme;
-

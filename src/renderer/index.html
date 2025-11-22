@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Electron Git App</title>
+    <title>Sinkar: GitHub Pages Generator</title>
     <meta
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: file:; connect-src 'self'; object-src 'none'; base-uri 'self';"
@@ -34,11 +34,31 @@
     
     <!-- Generators -->
     <script src="generators/themeTypes.js"></script>
-    <script src="generators/themes/common.js"></script>
-    <script src="generators/themes/writer.js"></script>
-    <script src="generators/themes/landing.js"></script>
-    <script src="generators/themes/portfolio.js"></script>
-    <script src="generators/themes/store.js"></script>
+    
+    <!-- Writer Theme -->
+    <script src="generators/themes/writer/html.js"></script>
+    <script src="generators/themes/writer/css.js"></script>
+    <script src="generators/themes/writer/js.js"></script>
+    <script src="generators/themes/writer/index.js"></script>
+
+    <!-- Landing Theme -->
+    <script src="generators/themes/landing/html.js"></script>
+    <script src="generators/themes/landing/css.js"></script>
+    <script src="generators/themes/landing/js.js"></script>
+    <script src="generators/themes/landing/index.js"></script>
+
+    <!-- Portfolio Theme -->
+    <script src="generators/themes/portfolio/html.js"></script>
+    <script src="generators/themes/portfolio/css.js"></script>
+    <script src="generators/themes/portfolio/js.js"></script>
+    <script src="generators/themes/portfolio/index.js"></script>
+
+    <!-- Store Theme -->
+    <script src="generators/themes/store/html.js"></script>
+    <script src="generators/themes/store/css.js"></script>
+    <script src="generators/themes/store/js.js"></script>
+    <script src="generators/themes/store/index.js"></script>
+
     <script src="generators/cssGenerator.js"></script>
     <script src="generators/htmlGenerator.js"></script>
     <script src="generators/jsGenerator.js"></script>

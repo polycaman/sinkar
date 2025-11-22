@@ -1,95 +1,44 @@
 (window as any).SinkarGenerators = (window as any).SinkarGenerators || {};
-(window as any).SinkarGenerators.Themes = (window as any).SinkarGenerators.Themes || {};
+(window as any).SinkarGenerators.PortfolioTheme = (window as any).SinkarGenerators.PortfolioTheme || {};
 
-const PortfolioTheme = {
-  id: "portfolio",
-
-  generateHtml(config: any): string {
-    const { CommonHtmlHead, CommonHtmlFooter } = (window as any).SinkarGenerators.Common;
-    const title = config.siteTitle || "My Portfolio";
-    const bodyContent = `
-<div class="layout-split">
-    <aside>
-        <div class="sticky-content">
-            <h1><a href="index.html">${title}</a></h1>
-            <p>${config.siteDescription}</p>
-            <nav>
-                <a href="index.html" class="active">Work</a>
-                <a href="#">About</a>
-                <a href="#">Contact</a>
-            </nav>
-            <footer>&copy; ${new Date().getFullYear()}</footer>
-        </div>
-    </aside>
-    <main id="view-container">
-        <!-- Content injected here -->
-    </main>
-</div>`;
-    return CommonHtmlHead(title, "portfolio") + bodyContent + CommonHtmlFooter;
-  },
-
-  generateCss(config: any): string {
-    const { CommonCss } = (window as any).SinkarGenerators.Common;
-    const PALETTES = (window as any).SinkarGenerators.PALETTES;
-    const p = PALETTES[config.paletteId] || PALETTES.default;
-    
-    const themeCss = `
-        body { overflow-x: hidden; }
-        .layout-split { display: flex; min-height: 100vh; }
-        aside { 
-            width: 300px; background: var(--surface); border-right: 1px solid rgba(0,0,0,0.05);
-            padding: 3rem 2rem; flex-shrink: 0;
-        }
-        .sticky-content { position: sticky; top: 3rem; }
-        aside h1 { font-size: 1.5rem; margin: 0 0 1rem; font-weight: 800; }
-        aside h1 a { color: var(--text); }
-        aside p { color: var(--text); opacity: 0.7; margin-bottom: 3rem; }
-        aside nav { display: flex; flex-direction: column; gap: 1rem; }
-        aside nav a { color: var(--text); opacity: 0.5; font-weight: 500; }
-        aside nav a.active, aside nav a:hover { opacity: 1; color: var(--primary); }
-        aside footer { margin-top: 4rem; font-size: 0.8rem; opacity: 0.4; }
-
-        main { flex-grow: 1; padding: 3rem; background: var(--bg); }
-        #article-list { 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 3rem; 
-        }
-        .article-card { group; }
-        .project-thumb {
-            aspect-ratio: 16/10; background: color-mix(in srgb, var(--secondary), transparent 90%);
-            border-radius: var(--radius); margin-bottom: 1.5rem; overflow: hidden;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 2rem; color: var(--secondary); transition: transform 0.4s;
-        }
-        .article-card:hover .project-thumb { transform: scale(1.02); }
-        .article-card h4 { font-size: 1.5rem; margin: 0 0 0.5rem; }
-        .article-card h4 a { color: var(--text); }
-        .article-card small { text-transform: uppercase; letter-spacing: 1px; font-size: 0.75rem; color: var(--primary); font-weight: bold; }
-
-        /* Project Detail */
-        .project-detail-header { margin-bottom: 3rem; }
-        .project-detail-header h1 { font-size: 3rem; margin: 0 0 1rem; line-height: 1.1; }
-        .project-meta { display: flex; gap: 2rem; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
-        .project-hero-image { 
-            width: 100%; height: 400px; background: color-mix(in srgb, var(--secondary), transparent 90%);
-            border-radius: var(--radius); margin-bottom: 3rem;
-            display: flex; align-items: center; justify-content: center; font-size: 3rem; color: var(--secondary);
-        }
-        .project-content { max-width: 800px; font-size: 1.2rem; line-height: 1.8; }
-
-        @media (max-width: 900px) {
-            .layout-split { flex-direction: column; }
-            aside { width: 100%; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.05); padding: 2rem; }
-            .sticky-content { position: static; }
-            main { padding: 2rem; }
-        }
-    `;
-    return CommonCss(config, p) + themeCss;
-  },
-
-  generateJs(config: any, preloadedArticles: any[] | null): string {
-    const { CommonJsHelpers } = (window as any).SinkarGenerators.Common;
+(window as any).SinkarGenerators.PortfolioTheme.generateJs = function(config: any, preloadedArticles: any[] | null): string {
     const description = config.siteDescription.replace(/"/g, '\\"');
     const articlesJson = preloadedArticles ? JSON.stringify(preloadedArticles) : 'null';
+
+    const CommonJsHelpers = `
+function fixAssetPath(path, articleFilename) {
+    if (!path) return path;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    
+    // If path is relative "assets/..." and article is a folder (no .md extension)
+    if (path.startsWith('assets/') && !articleFilename.endsWith('.md')) {
+        return 'articles/' + articleFilename + '/' + path;
+    }
+    return path;
+}
+
+function parseFrontmatter(text) {
+    const match = text.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n([\\s\\S]*)$/);
+    if (match) {
+        const yamlText = match[1];
+        const body = match[2];
+        const metadata = {};
+        
+        yamlText.split(/\\r?\\n/).forEach(line => {
+            const parts = line.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/[\\x00-\\x1F\\x7F-\\x9F\\u200B]/g, "").trim();
+                const value = parts.slice(1).join(':').trim();
+                if (key) {
+                    metadata[key] = value;
+                }
+            }
+        });
+        return { metadata, body };
+    }
+    return { metadata: {}, body: text };
+}
+`;
 
     return `
 const CURRENT_THEME = "portfolio";
@@ -234,8 +183,4 @@ async function loadArticlesList() {
 
 document.addEventListener('DOMContentLoaded', init);
 `;
-  }
 };
-
-(window as any).SinkarGenerators.Themes.portfolio = PortfolioTheme;
-

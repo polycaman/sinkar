@@ -1,74 +1,93 @@
 (window as any).SinkarGenerators = (window as any).SinkarGenerators || {};
-(window as any).SinkarGenerators.Themes = (window as any).SinkarGenerators.Themes || {};
+(window as any).SinkarGenerators.WriterTheme = (window as any).SinkarGenerators.WriterTheme || {};
 
-const WriterTheme = {
-  id: "writer",
-
-  generateHtml(config: any): string {
-    const { CommonHtmlHead, CommonHtmlFooter } = (window as any).SinkarGenerators.Common;
-    const title = config.siteTitle || "My Blog";
-    const bodyContent = `
-<header>
-    <div class="container">
-        <h1><a href="index.html">${title}</a></h1>
-        <p class="subtitle">${config.siteDescription}</p>
-    </div>
-</header>
-<main id="view-container" class="container">
-    <!-- Content injected here -->
-</main>
-<footer>
-    <p>&copy; ${new Date().getFullYear()} ${title}</p>
-</footer>`;
-    return CommonHtmlHead(title, "writer") + bodyContent + CommonHtmlFooter;
-  },
-
-  generateCss(config: any): string {
-    const { CommonCss } = (window as any).SinkarGenerators.Common;
-    const PALETTES = (window as any).SinkarGenerators.PALETTES;
-    const p = PALETTES[config.paletteId] || PALETTES.default;
-    
-    const themeCss = `
-        header { padding: 4rem 0 2rem; text-align: center; }
-        header h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
-        header h1 a { color: var(--text); }
-        .subtitle { font-size: 1.1rem; opacity: 0.6; max-width: 500px; margin: 0 auto; }
-        
-        main { max-width: 720px; margin: 0 auto; padding: 0 1.5rem; }
-        .article-card { margin-bottom: 4rem; }
-        .article-card h4 { font-size: 1.75rem; margin: 0 0 0.5rem; line-height: 1.2; }
-        .article-card h4 a { color: var(--text); }
-        .article-card h4 a:hover { color: var(--primary); }
-        .article-card small { font-size: 0.9rem; color: var(--text); opacity: 0.5; }
-        
-        .article-content { font-size: 1.2rem; line-height: 1.8; color: var(--text); }
-        .article-content h1, .article-content h2 { margin-top: 2em; letter-spacing: -0.02em; }
-        .article-content p { margin-bottom: 1.5em; }
-    `;
-    return CommonCss(config, p) + themeCss;
-  },
-
-  generateJs(config: any, preloadedArticles: any[] | null): string {
-    const { CommonJsHelpers } = (window as any).SinkarGenerators.Common;
+(window as any).SinkarGenerators.WriterTheme.generateJs = function(config: any, preloadedArticles: any[] | null): string {
     const description = config.siteDescription.replace(/"/g, '\\"');
     const articlesJson = preloadedArticles ? JSON.stringify(preloadedArticles) : 'null';
+    const extraPagesJson = JSON.stringify(config.extraPages || []);
+
+    const CommonJsHelpers = `
+function fixAssetPath(path, articleFilename) {
+    if (!path) return path;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    
+    // If path is relative "assets/..." and article is a folder (no .md extension)
+    if (path.startsWith('assets/') && !articleFilename.endsWith('.md')) {
+        return 'articles/' + articleFilename + '/' + path;
+    }
+    return path;
+}
+
+function parseFrontmatter(text) {
+    const match = text.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n([\\s\\S]*)$/);
+    if (match) {
+        const yamlText = match[1];
+        const body = match[2];
+        const metadata = {};
+        
+        yamlText.split(/\\r?\\n/).forEach(line => {
+            const parts = line.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/[\\x00-\\x1F\\x7F-\\x9F\\u200B]/g, "").trim();
+                const value = parts.slice(1).join(':').trim();
+                if (key) {
+                    metadata[key] = value;
+                }
+            }
+        });
+        return { metadata, body };
+    }
+    return { metadata: {}, body: text };
+}
+`;
 
     return `
 const CURRENT_THEME = "writer";
 const SITE_DESC = "${description}";
 const PRELOADED_ARTICLES = ${articlesJson};
+const EXTRA_PAGES = ${extraPagesJson};
 
 ${CommonJsHelpers}
 
 async function init() {
     const params = new URLSearchParams(window.location.search);
     const article = params.get('article');
+    const page = params.get('page');
     
-    if (article) {
+    if (page) {
+        await renderPage(page);
+    } else if (article) {
         await renderArticle(article);
     } else {
         await renderHome();
     }
+}
+
+async function renderPage(slug) {
+    const container = document.getElementById('view-container');
+    const pageData = EXTRA_PAGES.find(p => p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug);
+    
+    if (!pageData) {
+        container.innerHTML = '<div class="error">Page not found</div>';
+        return;
+    }
+
+    const content = typeof marked !== 'undefined' 
+        ? marked.parse(pageData.content)
+        : pageData.content.replace(/\\n/g, '<br>');
+
+    const html = \`
+        <article class="article-content">
+            <h1>\${pageData.title}</h1>
+            \${content}
+        </article>
+        <div style="margin-top: 3rem; text-align: center;">
+            <a href="index.html" style="opacity: 0.6;">&larr; Back to Home</a>
+        </div>
+    \`;
+    
+    container.innerHTML = html;
+    window.scrollTo(0, 0);
 }
 
 async function renderArticle(filename) {
@@ -187,8 +206,4 @@ async function loadArticlesList() {
 
 document.addEventListener('DOMContentLoaded', init);
 `;
-  }
 };
-
-(window as any).SinkarGenerators.Themes.writer = WriterTheme;
-

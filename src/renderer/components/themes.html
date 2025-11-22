@@ -95,6 +95,81 @@
           </div>
         </div>
 
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small">Layout Style</label>
+            <select class="form-select form-select-sm" x-model="config.layoutStyle">
+              <option value="default">Default</option>
+              
+              <!-- Writer Options -->
+              <template x-if="selectedTheme === 'writer'">
+                <optgroup label="Writer Options">
+                  <option value="sidebar">Sidebar</option>
+                  <option value="grid">Grid</option>
+                </optgroup>
+              </template>
+
+              <!-- Portfolio Options -->
+              <template x-if="selectedTheme === 'portfolio'">
+                <optgroup label="Portfolio Options">
+                  <option value="grid">Full Grid</option>
+                  <option value="minimal">Minimal List</option>
+                </optgroup>
+              </template>
+
+              <!-- Store Options -->
+              <template x-if="selectedTheme === 'store'">
+                <optgroup label="Store Options">
+                  <option value="list">List View</option>
+                  <option value="featured">Featured Hero</option>
+                </optgroup>
+              </template>
+
+              <!-- Landing Options -->
+              <template x-if="selectedTheme === 'landing'">
+                <optgroup label="Landing Options">
+                  <option value="centered">Centered Hero</option>
+                  <option value="split">Split Screen</option>
+                </optgroup>
+              </template>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small">Design Variant</label>
+            <select class="form-select form-select-sm" x-model="config.designVariant">
+              <option value="default">Default</option>
+              <option value="flat">Flat / Minimal</option>
+              <option value="glass">Glassmorphism</option>
+              <option value="neumorphic">Soft / Neumorphic</option>
+              <option value="retro">Retro / Brutalist</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Extra Pages (Writer Theme Only) -->
+        <div class="mb-3" x-show="selectedTheme === 'writer'">
+          <label class="form-label">Extra Pages</label>
+          <div class="alert alert-light border small mb-2" x-show="!config.extraPages || config.extraPages.length === 0">
+            No extra pages added. Click below to add pages like "About" or "Contact".
+          </div>
+          <template x-for="(page, index) in config.extraPages" :key="index">
+            <div class="border p-3 mb-3 rounded bg-light position-relative">
+              <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Remove" @click="config.extraPages.splice(index, 1)"></button>
+              <div class="mb-2">
+                <label class="form-label small">Page Title</label>
+                <input type="text" class="form-control form-control-sm" x-model="page.title" placeholder="e.g. About Me">
+              </div>
+              <div>
+                <label class="form-label small">Content (Markdown)</label>
+                <textarea class="form-control form-control-sm font-monospace" rows="5" x-model="page.content" placeholder="# About Me&#10;&#10;I am a writer..."></textarea>
+              </div>
+            </div>
+          </template>
+          <button type="button" class="btn btn-sm btn-outline-primary" @click="if(!config.extraPages) config.extraPages = []; config.extraPages.push({title: '', content: ''})">
+            <i class="bi bi-plus-lg"></i> Add Page
+          </button>
+        </div>
+
         <div class="alert alert-info small">
           Applying a theme will overwrite <code>index.html</code> and
           <code>swp/</code> folder in your repository root.

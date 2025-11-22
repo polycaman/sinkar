@@ -1,82 +1,77 @@
 (window as any).SinkarGenerators = (window as any).SinkarGenerators || {};
-(window as any).SinkarGenerators.Themes = (window as any).SinkarGenerators.Themes || {};
+(window as any).SinkarGenerators.LandingTheme = (window as any).SinkarGenerators.LandingTheme || {};
 
-const LandingTheme = {
-  id: "landing",
-
-  generateHtml(config: any): string {
-    const { CommonHtmlHead, CommonHtmlFooter } = (window as any).SinkarGenerators.Common;
-    const title = config.siteTitle || "My Landing Page";
-    const bodyContent = `
-<header>
-    <div class="container">
-        <h1><a href="index.html">${title}</a></h1>
-        <nav>
-            <a href="index.html#features">Features</a>
-            <a href="index.html#pricing">Pricing</a>
-            <a href="#" class="btn-cta">Get Started</a>
-        </nav>
-    </div>
-</header>
-<div id="view-container">
-    <!-- Content injected here -->
-</div>
-<footer>
-    <div class="container">
-        <p>&copy; ${new Date().getFullYear()} ${title}. All rights reserved.</p>
-    </div>
-</footer>`;
-    return CommonHtmlHead(title, "landing") + bodyContent + CommonHtmlFooter;
-  },
-
-  generateCss(config: any): string {
-    const { CommonCss } = (window as any).SinkarGenerators.Common;
-    const PALETTES = (window as any).SinkarGenerators.PALETTES;
-    const p = PALETTES[config.paletteId] || PALETTES.default;
-    
-    const themeCss = `
-        header { padding: 2rem 0; position: absolute; width: 100%; top: 0; left: 0; z-index: 10; }
-        header .container { display: flex; justify-content: space-between; align-items: center; }
-        header h1 a { color: var(--text); font-weight: 800; font-size: 1.5rem; }
-        header nav a { margin-left: 2rem; color: var(--text); font-weight: 500; }
-        .btn-cta { 
-            background: var(--primary); color: white !important; padding: 0.75rem 1.5rem; 
-            border-radius: 99px; transition: transform 0.2s; 
-        }
-        .btn-cta:hover { transform: scale(1.05); }
-
-        #hero { 
-            padding: 10rem 0 6rem; text-align: center; 
-            background: radial-gradient(circle at top center, color-mix(in srgb, var(--primary), transparent 92%), transparent 70%);
-        }
-        #hero h2 { font-size: clamp(2.5rem, 6vw, 4.5rem); line-height: 1.1; margin-bottom: 1.5rem; color: var(--text); letter-spacing: -0.03em; }
-        #hero p { font-size: 1.25rem; max-width: 600px; margin: 0 auto 2.5rem; opacity: 0.8; }
-        .hero-btns { display: flex; gap: 1rem; justify-content: center; }
-        .btn-primary { background: var(--text); color: var(--bg); padding: 1rem 2rem; border-radius: var(--radius); font-weight: 600; }
-        .btn-secondary { background: transparent; border: 1px solid var(--text); color: var(--text); padding: 1rem 2rem; border-radius: var(--radius); font-weight: 600; }
-
-        #features { padding: 6rem 0; background: var(--surface); }
-        #features h3 { text-align: center; font-size: 2rem; margin-bottom: 4rem; }
-        #article-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; }
-        .article-card { padding: 2rem; border-radius: var(--radius); background: var(--bg); border: 1px solid rgba(0,0,0,0.05); }
-        .article-card h4 { font-size: 1.25rem; margin-bottom: 1rem; }
-        .article-card h4 a { color: var(--text); }
-        .article-card small { display: none; } /* Hide dates for landing page look */
-        
-        /* Feature Detail */
-        .feature-detail { max-width: 800px; margin: 4rem auto; padding: 0 1.5rem; }
-        .feature-detail h1 { font-size: 3rem; text-align: center; margin-bottom: 2rem; }
-        .feature-detail-content { font-size: 1.2rem; line-height: 1.8; }
-
-        footer { padding: 4rem 0; text-align: center; opacity: 0.6; font-size: 0.9rem; }
-    `;
-    return CommonCss(config, p) + themeCss;
-  },
-
-  generateJs(config: any, preloadedArticles: any[] | null): string {
-    const { CommonJsHelpers } = (window as any).SinkarGenerators.Common;
+(window as any).SinkarGenerators.LandingTheme.generateJs = function(config: any, preloadedArticles: any[] | null): string {
     const description = config.siteDescription.replace(/"/g, '\\"');
     const articlesJson = preloadedArticles ? JSON.stringify(preloadedArticles) : 'null';
+    const layout = config.layoutStyle || 'default';
+
+    const CommonJsHelpers = `
+function fixAssetPath(path, articleFilename) {
+    if (!path) return path;
+    if (path.startsWith('http') || path.startsWith('data:')) return path;
+    
+    // If path is relative "assets/..." and article is a folder (no .md extension)
+    if (path.startsWith('assets/') && !articleFilename.endsWith('.md')) {
+        return 'articles/' + articleFilename + '/' + path;
+    }
+    return path;
+}
+
+function parseFrontmatter(text) {
+    const match = text.match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n([\\s\\S]*)$/);
+    if (match) {
+        const yamlText = match[1];
+        const body = match[2];
+        const metadata = {};
+        
+        yamlText.split(/\\r?\\n/).forEach(line => {
+            const parts = line.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].replace(/[\\x00-\\x1F\\x7F-\\x9F\\u200B]/g, "").trim();
+                const value = parts.slice(1).join(':').trim();
+                if (key) {
+                    metadata[key] = value;
+                }
+            }
+        });
+        return { metadata, body };
+    }
+    return { metadata: {}, body: text };
+}
+`;
+
+    let heroHtml = '';
+    if (layout === 'split') {
+        heroHtml = `
+        <section id="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h2>\${SITE_DESC}</h2>
+                    <p>The best solution for your needs. Fast, reliable, and secure.</p>
+                    <div class="hero-btns">
+                        <a href="#features" class="btn-primary">Start Free Trial</a>
+                        <a href="#pricing" class="btn-secondary">Learn More</a>
+                    </div>
+                </div>
+                <div class="hero-image-placeholder">
+                    <i class="fas fa-rocket"></i>
+                </div>
+            </div>
+        </section>`;
+    } else {
+        heroHtml = `
+        <section id="hero">
+            <div class="container">
+                <h2>\${SITE_DESC}</h2>
+                <p>The best solution for your needs. Fast, reliable, and secure.</p>
+                <div class="hero-btns">
+                    <a href="#features" class="btn-primary">Start Free Trial</a>
+                    <a href="#pricing" class="btn-secondary">Learn More</a>
+                </div>
+            </div>
+        </section>`;
+    }
 
     return `
 const CURRENT_THEME = "landing";
@@ -158,16 +153,7 @@ async function renderArticle(filename) {
 async function renderHome() {
     const container = document.getElementById('view-container');
     container.innerHTML = \`
-        <section id="hero">
-            <div class="container">
-                <h2>\${SITE_DESC}</h2>
-                <p>The best solution for your needs. Fast, reliable, and secure.</p>
-                <div class="hero-btns">
-                    <a href="#features" class="btn-primary">Start Free Trial</a>
-                    <a href="#pricing" class="btn-secondary">Learn More</a>
-                </div>
-            </div>
-        </section>
+        ${heroHtml}
         <section id="features">
             <div class="container">
                 <h3>Latest Updates & Features</h3>
@@ -233,8 +219,4 @@ async function loadArticlesList() {
 
 document.addEventListener('DOMContentLoaded', init);
 `;
-  }
 };
-
-(window as any).SinkarGenerators.Themes.landing = LandingTheme;
-

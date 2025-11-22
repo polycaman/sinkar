@@ -5,6 +5,9 @@ interface ThemeConfig {
   fontFamily: string;
   borderRadius: string;
   storeEmail?: string; // Added for store theme
+  layoutStyle?: string;
+  designVariant?: string;
+  extraPages?: Array<{ title: string; content: string; }>;
 }
 
 const PALETTES: Record<string, any> = {
