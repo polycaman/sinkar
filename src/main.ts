@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "path";
 import { GitService } from "./services/gitService";
 
@@ -15,6 +15,24 @@ function createWindow() {
       sandbox: true,
     },
   });
+
+  // Handle external links and mailto
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https:") || url.startsWith("http:") || url.startsWith("mailto:")) {
+      shell.openExternal(url);
+      return { action: "deny" };
+    }
+    return { action: "allow" };
+  });
+
+  // Handle window.location.href = 'mailto:...'
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('mailto:')) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+
   win.loadFile(join(__dirname, "renderer", "index.html")).catch(() => {});
 }
 
@@ -131,10 +149,88 @@ ipcMain.handle(
 );
 
 ipcMain.handle(
+  "git:write-site-file",
+  async (
+    _event,
+    payload: { repoName: string; filePath: string; content: string }
+  ) => {
+    try {
+      return await gitService.writeSiteFile(
+        payload.repoName,
+        payload.filePath,
+        payload.content
+      );
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  "git:read-site-file",
+  async (
+    _event,
+    payload: { repoName: string; filePath: string }
+  ) => {
+    try {
+      return await gitService.readSiteFile(
+        payload.repoName,
+        payload.filePath
+      );
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  "git:rebuild-index",
+  async (_event, repoName: string) => {
+    try {
+      return await gitService.rebuildArticlesIndex(repoName);
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  "git:get-repo-path",
+  async (_event, repoName: string) => {
+    try {
+      return await gitService.getRepoPath(repoName);
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+);
+
+ipcMain.handle(
   "git:commit-and-push",
   async (_event, payload: { repoName: string; message?: string }) => {
     try {
       return await gitService.commitAndPush(payload.repoName, payload.message);
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }
+);
+
+ipcMain.handle(
+  "git:save-asset",
+  async (
+    _event,
+    payload: { repoName: string; articleId: string; fileName: string; fileData: ArrayBuffer }
+  ) => {
+    try {
+      // Convert ArrayBuffer to Buffer
+      const buffer = Buffer.from(payload.fileData);
+      return await gitService.saveAsset(
+        payload.repoName,
+        payload.articleId,
+        payload.fileName,
+        buffer
+      );
     } catch (e: any) {
       return { error: e.message };
     }

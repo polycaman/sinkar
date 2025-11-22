@@ -29,6 +29,8 @@ interface GitAPI {
     email?: string;
     repoName: string;
   }) => Promise<string>;
+  saveAsset: (repoName: string, articleId: string, fileName: string, fileData: ArrayBuffer) => Promise<string | { error: string }>;
+  getRepoPath: (repoName: string) => Promise<string>;
 }
 
 declare global {

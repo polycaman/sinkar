@@ -13,7 +13,17 @@
       <div
         class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom bg-light"
       >
-        <strong x-text="filename"></strong>
+        <div class="d-flex align-items-center gap-2">
+          <strong x-text="filename"></strong>
+          <button 
+            class="btn btn-sm btn-outline-secondary" 
+            @click="showMetadata = !showMetadata"
+            :class="showMetadata ? 'active' : ''"
+            title="Toggle Theme Properties"
+          >
+            <i class="bi bi-sliders"></i> Props
+          </button>
+        </div>
         <div class="d-flex gap-2">
           <span
             class="spinner-border spinner-border-sm"
@@ -29,14 +39,145 @@
           </button>
         </div>
       </div>
-      <div class="flex-grow-1 p-3 overflow-auto">
+
+      <!-- Metadata Editor -->
+      <div class="border-bottom bg-white p-3" x-show="showMetadata" x-transition>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="small text-muted mb-0">Theme Properties</h6>
+            <button class="btn btn-sm btn-link text-danger p-0 small" style="font-size: 0.8rem; text-decoration: none;" x-show="orphanedProps.length > 0" @click="removeOrphanedProps">
+                <i class="bi bi-trash"></i> Clean Unused (<span x-text="orphanedProps.length"></span>)
+            </button>
+        </div>
+        
+        <div class="row g-2">
+          <template x-for="field in currentSchema" :key="field.name">
+            <div class="col-md-6">
+              <label class="form-label small mb-1" x-text="field.label"></label>
+              
+              <!-- Text/Number/Date Inputs -->
+              <template x-if="field.type !== 'image'">
+                <input 
+                  :type="field.type === 'number' ? 'number' : (field.type === 'date' ? 'date' : 'text')" 
+                  class="form-control form-control-sm" 
+                  x-model="metadata[field.name]"
+                  :placeholder="field.placeholder || ''"
+                  @input="notifyChange"
+                >
+              </template>
+
+              <!-- Image Input -->
+              <template x-if="field.type === 'image'">
+                <div 
+                  class="border rounded p-2 text-center bg-light position-relative"
+                  @dragover.prevent
+                  @drop.prevent="handleFieldDrop($event, field.name)"
+                  style="min-height: 80px; cursor: pointer;"
+                  @click="$el.querySelector('input[type=file]').click()"
+                >
+                  <input 
+                    type="file" 
+                    style="display: none" 
+                    accept="image/*"
+                    @change="handleFieldFileSelect($event, field.name)"
+                  >
+                  
+                  <template x-if="metadata[field.name]">
+                    <div class="position-relative">
+                      <img 
+                        :src="metadata[field.name].startsWith('assets/') ? 'file:///' + repoPath.replace(/\\/g, '/') + '/articles/' + filename + '/' + metadata[field.name] : metadata[field.name]" 
+                        class="img-fluid rounded" 
+                        style="max-height: 100px;"
+                        @error="$el.src = metadata[field.name]" 
+                      >
+                      <button 
+                        class="btn btn-sm btn-danger position-absolute top-0 end-0 m-1 py-0 px-1" 
+                        @click.stop="metadata[field.name] = ''; notifyChange()"
+                        title="Remove Image"
+                      >&times;</button>
+                      <div class="small text-muted mt-1 text-truncate" x-text="metadata[field.name]"></div>
+                    </div>
+                  </template>
+                  
+                  <template x-if="!metadata[field.name]">
+                    <div class="text-muted small py-3">
+                      <i class="bi bi-cloud-upload fs-4 d-block"></i>
+                      <span>Click or Drop Image</span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+            </div>
+          </template>
+          <div class="col-12" x-show="!currentSchema || currentSchema.length === 0">
+            <span class="text-muted small">No specific properties for this theme.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-grow-1 p-3 overflow-auto d-flex flex-column">
+        <!-- Toolbar -->
+        <div class="btn-toolbar mb-2" role="toolbar" aria-label="Editor toolbar">
+          <div class="btn-group me-2 mb-1" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('**', '**')" title="Bold">
+              <i class="bi bi-type-bold"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('*', '*')" title="Italic">
+              <i class="bi bi-type-italic"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('~~', '~~')" title="Strikethrough">
+              <i class="bi bi-type-strikethrough"></i>
+            </button>
+          </div>
+
+          <div class="btn-group me-2 mb-1" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('# ')" title="Heading 1">
+              <i class="bi bi-type-h1"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('## ')" title="Heading 2">
+              <i class="bi bi-type-h2"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('### ')" title="Heading 3">
+              <i class="bi bi-type-h3"></i>
+            </button>
+          </div>
+
+          <div class="btn-group me-2 mb-1" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('- ')" title="Unordered List">
+              <i class="bi bi-list-ul"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('1. ')" title="Ordered List">
+              <i class="bi bi-list-ol"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('> ')" title="Quote">
+              <i class="bi bi-quote"></i>
+            </button>
+          </div>
+
+          <div class="btn-group me-2 mb-1" role="group">
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('[', '](url)')" title="Link">
+              <i class="bi bi-link-45deg"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('![', '](url)')" title="Image">
+              <i class="bi bi-card-image"></i>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="insertMarkdown('```\n', '\n```')" title="Code Block">
+              <i class="bi bi-code-square"></i>
+            </button>
+          </div>
+        </div>
+
         <textarea
-          class="form-control"
-          x-model="content"
+          id="editor-textarea"
+          class="form-control flex-grow-1"
+          x-model="body"
           :disabled="loading"
-          style="height: 100%; font-family: monospace; white-space: pre"
+          style="font-family: monospace; white-space: pre; resize: none;"
           spellcheck="false"
           @input="notifyChange"
+          @drop.prevent="handleDrop($event)"
+          @dragover.prevent
+          placeholder="Write your article content here... Drag & Drop images/videos supported."
         ></textarea>
       </div>
       <div class="px-3 py-1 small text-muted border-top" x-show="dirty()">

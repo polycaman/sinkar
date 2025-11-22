@@ -1,4 +1,26 @@
 <div x-data="previewerLogic()" x-init="init()" class="border-top pt-2">
+  <style>
+    .preview-box {
+      max-height: 500px;
+      overflow: auto;
+      background: #fff;
+      transition: all 0.2s ease-in-out;
+      border: 1px solid transparent;
+    }
+    .preview-box:hover {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 900px;
+      height: 90vh;
+      max-height: 90vh !important;
+      z-index: 9999;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+  </style>
   <template x-if="!activeFilename">
     <div class="text-muted small">No file open.</div>
   </template>
@@ -8,7 +30,7 @@
         <strong class="small" x-text="activeFilename"></strong>
         <span class="badge bg-secondary">Preview</span>
       </div>
-      <div class="small" style="max-height: 180px; overflow: auto">
+      <div class="small preview-box">
         <div x-ref="preview" x-html="rendered"></div>
       </div>
     </div>

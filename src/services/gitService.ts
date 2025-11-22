@@ -1,5 +1,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
+import { promises as fs } from "fs";
+import path from "path";
 
 const execPromise = promisify(exec);
 
@@ -107,40 +109,45 @@ export class GitService {
       throw new Error("Username and repository name are required to clone");
     }
     const repoUrl = `https://github.com/${username}/${repoName}.git`;
+    const repoPath = path.resolve(process.cwd(), repoName);
     try {
-      await execPromise(`test -d ${repoName}`);
-      return `Repository folder '${repoName}' already exists. Skipping clone.`;
+      const stat = await fs.stat(repoPath).catch(() => null);
+      if (stat && stat.isDirectory()) {
+        return `Repository folder '${repoName}' already exists. Skipping clone.`;
+      }
     } catch {}
     try {
       const { stdout, stderr } = await execPromise(`git clone ${repoUrl}`);
-      if (stderr) {
-        if (/fatal|error/i.test(stderr)) {
-          throw new Error(stderr);
-        }
+      if (stderr && /fatal|error/i.test(stderr)) {
+        throw new Error(stderr);
       }
       return stdout || `Cloned ${repoUrl}`;
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Clone failed: ${error.message}`);
     }
   }
 
   async listFiles(repoName: string): Promise<string[]> {
-    const { exec } = await import("child_process");
-    const { promisify } = await import("util");
-    const execP = promisify(exec);
+    if (!repoName) return [];
+    const repoPath = path.resolve(process.cwd(), repoName);
+    const exists = await fs.stat(repoPath).catch(() => null);
+    if (!exists) return [];
+    const out: string[] = [];
+    const walk = async (dir: string) => {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === ".git" || entry.name === "node_modules") continue;
+          await walk(full);
+        } else if (entry.isFile()) {
+          out.push(path.relative(repoPath, full).replace(/\\/g, "/"));
+        }
+      }
+    };
     try {
-      await execP(`test -d ${repoName}`);
-    } catch {
-      return [];
-    }
-    try {
-      const { stdout } = await execP(
-        `find ${repoName} -type f -not -path '*/.git/*' -not -path '*/node_modules/*'`
-      );
-      return stdout
-        .split("\n")
-        .filter((l) => l.trim())
-        .map((full) => full.replace(new RegExp(`^${repoName}/`), ""));
+      await walk(repoPath);
+      return out;
     } catch (e: any) {
       throw new Error(`Failed to list files: ${e.message}`);
     }
@@ -151,46 +158,58 @@ export class GitService {
     const { exec } = await import("child_process");
     const { promisify } = await import("util");
     const execP = promisify(exec);
+    
+    // Check if repo exists using fs.stat instead of shell command 'test -d'
+    // 'test -d' fails on Windows cmd.exe
+    const repoPath = path.resolve(process.cwd(), repoName);
     try {
-      await execP(`test -d ${repoName}`);
+      const stat = await fs.stat(repoPath);
+      if (!stat.isDirectory()) {
+         throw new Error("Not a directory");
+      }
     } catch {
       return `Repository '${repoName}' not cloned yet. Clone first in Settings.`;
     }
+
     try {
-      const { stdout, stderr } = await execP(
-        `git -C ${repoName} pull --ff-only`
-      );
-      if (stderr && /fatal|error/i.test(stderr)) {
-        throw new Error(stderr);
-      }
-      return stdout || `Updated ${repoName}`;
+      // First fetch
+      await execP(`git -C ${repoName} fetch origin`);
+      
+      // Then reset hard to match origin/main exactly
+      // This ensures "what is in the repo remains" and discards local garbage/conflicts
+      await execP(`git -C ${repoName} reset --hard origin/main`);
+      
+      // Also clean untracked files to ensure "everything is forgotten" except what's in the repo
+      await execP(`git -C ${repoName} clean -fd`);
+
+      // Rebuild index to match the new state
+      await this.rebuildArticlesIndex(repoName);
+
+      return `Updated ${repoName} (Reset to origin/main & Cleaned)`;
     } catch (e: any) {
       throw new Error(`Update failed: ${e.message}`);
     }
   }
 
   async ensureArticlesDir(repoName: string): Promise<void> {
-    const dir = `${repoName}/articles`;
-    try {
-      await execPromise(`test -d ${dir}`);
-    } catch {
-      await execPromise(`mkdir -p ${dir}`);
+    if (!repoName) return;
+    const dir = path.resolve(process.cwd(), repoName, "articles");
+    const stat = await fs.stat(dir).catch(() => null);
+    if (!stat) {
+      await fs.mkdir(dir, { recursive: true });
     }
   }
 
   async listArticles(repoName: string): Promise<string[]> {
     if (!repoName) return [];
+    await this.ensureArticlesDir(repoName);
+    const articlesDir = path.resolve(process.cwd(), repoName, "articles");
     try {
-      await this.ensureArticlesDir(repoName);
-    } catch {}
-    try {
-      const { stdout } = await execPromise(
-        `find ${repoName}/articles -type f -maxdepth 1 2>/dev/null || true`
-      );
-      return stdout
-        .split("\n")
-        .filter((l) => l.trim())
-        .map((full) => full.replace(new RegExp(`^${repoName}/articles/`), ""));
+      const entries = await fs.readdir(articlesDir, { withFileTypes: true });
+      return entries
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort();
     } catch (e: any) {
       throw new Error(`Failed to list articles: ${e.message}`);
     }
@@ -200,10 +219,19 @@ export class GitService {
     if (!repoName || !filename)
       throw new Error("Repository and filename required");
     await this.ensureArticlesDir(repoName);
-    const path = `${repoName}/articles/${filename}`;
+    // Check if it's a folder (new system) or file (old system)
+    const folderPath = path.resolve(process.cwd(), repoName, "articles", filename);
+    const filePath = path.resolve(process.cwd(), repoName, "articles", filename + ".md");
+    
     try {
-      const { stdout } = await execPromise(`cat ${path} 2>/dev/null || true`);
-      return stdout;
+      const stat = await fs.stat(folderPath).catch(() => null);
+      if (stat && stat.isDirectory()) {
+        // It's a folder, read index.md
+        return await fs.readFile(path.join(folderPath, "index.md"), "utf8");
+      } else {
+        // Fallback to old file system
+        return await fs.readFile(filePath, "utf8").catch(() => "");
+      }
     } catch (e: any) {
       throw new Error(`Failed to read article: ${e.message}`);
     }
@@ -217,12 +245,17 @@ export class GitService {
     if (!repoName || !filename)
       throw new Error("Repository and filename required");
     await this.ensureArticlesDir(repoName);
-    const path = `${repoName}/articles/${filename}`;
-    const escaped = content.replace(/`/g, "\\`");
+    
+    const folderPath = path.resolve(process.cwd(), repoName, "articles", filename);
+    
     try {
-      await execPromise(
-        `bash -c 'printf %s "${escaped.replace(/"/g, '\\"')}" > ${path}'`
-      );
+      // Ensure folder exists
+      await fs.mkdir(folderPath, { recursive: true });
+      // Write to index.md
+      await fs.writeFile(path.join(folderPath, "index.md"), content, "utf8");
+      
+      // Auto-rebuild index after writing
+      await this.rebuildArticlesIndex(repoName);
       return `Saved ${filename}`;
     } catch (e: any) {
       throw new Error(`Failed to write article: ${e.message}`);
@@ -232,23 +265,185 @@ export class GitService {
   async newArticle(repoName: string, filename: string): Promise<string> {
     if (!repoName || !filename)
       throw new Error("Repository and filename required");
+    
+    // Clean filename to be folder-safe
+    const safeName = filename.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+
     await this.ensureArticlesDir(repoName);
-    const path = `${repoName}/articles/${filename}`;
-    try {
-      await execPromise(`test -f ${path}`);
-      return `Article '${filename}' already exists.`;
-    } catch {
-      const template = `# ${filename}\n\nNew article created on ${new Date().toISOString()}\n`;
-      await this.writeArticle(repoName, filename, template);
-      return `Created ${filename}`;
+    const folderPath = path.resolve(process.cwd(), repoName, "articles", safeName);
+    
+    const exists = await fs.stat(folderPath).catch(() => null);
+    if (exists) {
+      return `Article '${safeName}' already exists.`;
     }
+    
+    try {
+      await fs.mkdir(folderPath, { recursive: true });
+      await fs.mkdir(path.join(folderPath, "assets"), { recursive: true });
+      
+      const template = `# ${filename}\n\nNew article created on ${new Date().toISOString()}\n`;
+      await fs.writeFile(path.join(folderPath, "index.md"), template, "utf8");
+      
+      await this.rebuildArticlesIndex(repoName);
+      return `Created ${safeName}`;
+    } catch (e: any) {
+      throw new Error(`Failed to create article: ${e.message}`);
+    }
+  }
+
+  async saveAsset(repoName: string, articleId: string, fileName: string, fileData: Buffer): Promise<string> {
+    if (!repoName || !articleId || !fileName) throw new Error("Missing params");
+    
+    const assetsDir = path.resolve(process.cwd(), repoName, "articles", articleId, "assets");
+    try {
+      await fs.mkdir(assetsDir, { recursive: true });
+      
+      // Generate random name to avoid collisions
+      const ext = path.extname(fileName);
+      const randomName = Math.random().toString(36).substring(2, 15) + ext;
+      const filePath = path.join(assetsDir, randomName);
+      
+      await fs.writeFile(filePath, fileData);
+      return `assets/${randomName}`;
+    } catch (e: any) {
+      throw new Error(`Failed to save asset: ${e.message}`);
+    }
+  }
+
+  async writeSiteFile(
+    repoName: string,
+    filePath: string,
+    content: string
+  ): Promise<string> {
+    if (!repoName || !filePath)
+      throw new Error("Repository and file path required");
+    const fullPath = path.resolve(process.cwd(), repoName, filePath);
+    const dir = path.dirname(fullPath);
+    try {
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(fullPath, content, "utf8");
+      return `Saved ${filePath}`;
+    } catch (e: any) {
+      throw new Error(`Failed to write site file: ${e.message}`);
+    }
+  }
+
+  async readSiteFile(repoName: string, filePath: string): Promise<string> {
+    if (!repoName || !filePath)
+      throw new Error("Repository and file path required");
+    const fullPath = path.resolve(process.cwd(), repoName, filePath);
+    try {
+      const data = await fs.readFile(fullPath, "utf8");
+      return data;
+    } catch (e: any) {
+      // Return empty string if file doesn't exist, or throw specific error?
+      // For config loading, empty string or null is better than crashing.
+      if (e.code === 'ENOENT') return "";
+      throw new Error(`Failed to read site file: ${e.message}`);
+    }
+  }
+
+  async rebuildArticlesIndex(repoName: string): Promise<string> {
+    if (!repoName) throw new Error("Repository name required");
+    
+    // Ensure directory exists, if not create it (handles empty repo case)
+    await this.ensureArticlesDir(repoName);
+    
+    const articlesDir = path.resolve(process.cwd(), repoName, "articles");
+    try {
+      // If directory doesn't exist (should be handled by ensureArticlesDir but double check)
+      const dirStat = await fs.stat(articlesDir).catch(() => null);
+      if (!dirStat) {
+          // If for some reason it's still missing, write empty index
+          const indexPath = path.resolve(process.cwd(), repoName, "articles.json");
+          await fs.writeFile(indexPath, "[]", "utf8");
+          return "Repo empty, initialized empty index.";
+      }
+
+      const entries = await fs.readdir(articlesDir, { withFileTypes: true });
+      const articles = [];
+      for (const entry of entries) {
+        let content = "";
+        let fullPath = "";
+        let articleId = entry.name;
+
+        if (entry.isDirectory()) {
+          fullPath = path.join(articlesDir, entry.name, "index.md");
+          content = await fs.readFile(fullPath, "utf8").catch(() => "");
+        } else if (entry.isFile() && !entry.name.startsWith(".")) {
+          // Legacy support
+          fullPath = path.join(articlesDir, entry.name);
+          content = await fs.readFile(fullPath, "utf8").catch(() => "");
+        } else {
+          continue;
+        }
+
+        if (!content) continue;
+          
+          let title = articleId;
+          let metadata: any = {};
+
+          // Parse Frontmatter
+          const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+          if (fmMatch) {
+            const yamlText = fmMatch[1];
+            yamlText.split(/\r?\n/).forEach(line => {
+              const parts = line.split(':');
+              if (parts.length >= 2) {
+                const key = parts[0].replace(/[\x00-\x1F\x7F-\x9F\u200B]/g, "").trim();
+                const value = parts.slice(1).join(':').trim();
+                if (key) {
+                  metadata[key] = value;
+                }
+              }
+            });
+            
+            // If title is in metadata, use it
+            if (metadata.title) {
+              title = metadata.title;
+            }
+          }
+
+          // Fallback title extraction if not in metadata
+          if (title === articleId) {
+             const firstLine = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '').split(/\r?\n/)[0] || "";
+             if (firstLine.startsWith("#")) {
+               title = firstLine.replace(/^#+\s*/, "").trim();
+             }
+          }
+          
+          // Get file modification time
+          const stats = await fs.stat(fullPath);
+          
+          articles.push({
+            title,
+            file: articleId, // Now just the folder name (or filename for legacy)
+            date: stats.mtime.toISOString(),
+            ...metadata // Include all metadata in the index
+          });
+        }
+      // Sort by date descending
+      articles.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      const indexContent = JSON.stringify(articles, null, 2);
+      const indexPath = path.resolve(process.cwd(), repoName, "articles.json");
+      await fs.writeFile(indexPath, indexContent, "utf8");
+      return `Rebuilt articles.json with ${articles.length} articles`;
+    } catch (e: any) {
+      throw new Error(`Failed to rebuild index: ${e.message}`);
+    }
+  }
+
+  async getRepoPath(repoName: string): Promise<string> {
+    if (!repoName) throw new Error("Repository name required");
+    return path.resolve(process.cwd(), repoName);
   }
 
   async commitAndPush(repoName: string, message?: string): Promise<string> {
     if (!repoName) throw new Error("Repository name required");
-    const commitMsg = message || `Update articles ${new Date().toISOString()}`;
+    const commitMsg = message || `Update site ${new Date().toISOString()}`;
     try {
-      await execPromise(`git -C ${repoName} add articles || true`);
+      await execPromise(`git -C ${repoName} add .`);
       const { stdout: diffOut } = await execPromise(
         `git -C ${repoName} diff --cached --name-only`
       );

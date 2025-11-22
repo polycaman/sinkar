@@ -1,0 +1,130 @@
+<div
+  class="modal fade"
+  id="themesModal"
+  tabindex="-1"
+  aria-hidden="true"
+  x-data="themesLogic()"
+  x-init="init()"
+>
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Site Themes</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Select Theme</label>
+          <select class="form-select" x-model="selectedTheme">
+            <template x-for="t in themes" :key="t.id">
+              <option :value="t.id" x-text="t.name"></option>
+            </template>
+          </select>
+        </div>
+
+        <hr>
+        <h6>Theme Configuration</h6>
+
+        <div class="mb-3">
+          <label class="form-label">Site Title</label>
+          <input type="text" class="form-control" x-model="config.siteTitle">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" rows="2" x-model="config.siteDescription"></textarea>
+        </div>
+
+        <div class="mb-3" x-show="selectedTheme === 'store'">
+          <label class="form-label">Store Owner Email</label>
+          <input type="email" class="form-control" x-model="config.storeEmail" placeholder="orders@myshop.com">
+          <div class="form-text small">Used for receiving order inquiries via email.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Color Palette</label>
+          <div class="d-grid gap-2" style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));">
+            <template x-for="(p, key) in palettes" :key="key">
+              <div 
+                class="border rounded p-2 cursor-pointer position-relative"
+                :class="config.paletteId === key ? 'border-primary ring-2' : 'border-light'"
+                @click="config.paletteId = key"
+                style="cursor: pointer;"
+              >
+                <div class="d-flex mb-2" style="height: 20px;">
+                  <div class="flex-grow-1" :style="`background: ${p.primary}`"></div>
+                  <div class="flex-grow-1" :style="`background: ${p.secondary}`"></div>
+                  <div class="flex-grow-1" :style="`background: ${p.bg}`"></div>
+                </div>
+                <div class="small text-center text-truncate" x-text="p.name"></div>
+                <div x-show="config.paletteId === key" class="position-absolute top-0 end-0 p-1 text-primary">
+                  <i class="bi bi-check-circle-fill"></i>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small">Font Family</label>
+            <select class="form-select form-select-sm" x-model="config.fontFamily">
+              <option value="system-ui, -apple-system, sans-serif">System UI</option>
+              <option value="'Segoe UI', Tahoma, Geneva, Verdana, sans-serif">Segoe UI</option>
+              <option value="'Helvetica Neue', Helvetica, Arial, sans-serif">Helvetica</option>
+              <option value="'Georgia', serif">Georgia</option>
+              <option value="'Courier New', Courier, monospace">Courier New</option>
+              <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+              <option value="'Arial Black', sans-serif">Arial Black</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small">Border Radius</label>
+            <select class="form-select form-select-sm" x-model="config.borderRadius">
+              <option value="0px">None (0px)</option>
+              <option value="4px">Small (4px)</option>
+              <option value="8px">Medium (8px)</option>
+              <option value="16px">Large (16px)</option>
+              <option value="9999px">Round</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="alert alert-info small">
+          Applying a theme will overwrite <code>index.html</code> and
+          <code>swp/</code> folder in your repository root.
+          It will also rebuild <code>articles.json</code>.
+        </div>
+
+        <div
+          class="alert"
+          :class="status.includes('Error') ? 'alert-danger' : 'alert-success'"
+          x-show="status"
+          x-text="status"
+        ></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          @click="applyTheme"
+          :disabled="loading || !repoName"
+        >
+          <span
+            class="spinner-border spinner-border-sm"
+            x-show="loading"
+          ></span>
+          Apply Theme
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

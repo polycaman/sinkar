@@ -44,6 +44,14 @@ function fileExplorerLogic() {
       try {
         await (window as any).git.newArticle(this.repoName, name);
         await this.refresh();
+
+        // Notify themes to regenerate script.js
+        window.dispatchEvent(
+          new CustomEvent("repo:files-updated", {
+            detail: { repoName: this.repoName },
+          })
+        );
+
         window.dispatchEvent(
           new CustomEvent("article:open", {
             detail: { repoName: this.repoName, filename: name },
@@ -67,7 +75,7 @@ function fileExplorerLogic() {
 
 (window as any).createFileExplorerLogic = fileExplorerLogic;
 
-document.addEventListener("DOMContentLoaded", async () => {
+const initFileExplorer = async () => {
   try {
     const res = await fetch("components/fileExplorer.html");
     if (!res.ok) return;
@@ -78,4 +86,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     wrapper.innerHTML = html;
     mount.appendChild(wrapper.firstElementChild as HTMLElement);
   } catch {}
-});
+};
+
+window.addEventListener("workspace:mounted", initFileExplorer);

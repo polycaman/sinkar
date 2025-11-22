@@ -1,0 +1,53 @@
+<div style="height: 100vh; display: flex">
+  <div
+    id="file-explorer-mount"
+    class="border-end"
+    style="width: 260px; overflow: auto"
+  ></div>
+  <div class="flex-grow-1 d-flex flex-column">
+    <div class="flex-grow-1 d-flex" style="min-height: 0">
+      <div
+        id="article-editor-mount"
+        class="flex-grow-1 border-end"
+        style="min-width: 0"
+      ></div>
+      <div
+        x-data="workspaceLogic()"
+        x-init="init()"
+        class="d-flex flex-column"
+        style="width: 340px"
+      >
+        <div class="d-flex gap-2 justify-content-start mb-2 px-2 pt-3">
+          <button class="btn btn-outline-primary btn-sm" @click="fetchRepo">
+            Fetch
+          </button>
+          <button class="btn btn-outline-success btn-sm" @click="pushRepo">
+            Push
+          </button>
+          <button
+            class="btn btn-outline-secondary btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#settingsModal"
+          >
+            Settings
+          </button>
+          <button
+            class="btn btn-outline-info btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#themesModal"
+          >
+            Themes
+          </button>
+        </div>
+        <div class="px-2 mb-2">
+          <pre
+            class="bg-light p-2 rounded small"
+            x-text="output"
+            style="min-height: 160px; white-space: pre-wrap"
+          ></pre>
+        </div>
+        <div id="previewer-mount" class="px-2 mb-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
