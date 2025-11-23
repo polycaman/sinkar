@@ -6,6 +6,13 @@ import path from "path";
 const execPromise = promisify(exec);
 
 export class GitService {
+  private baseDir: string;
+
+  constructor(baseDir: string) {
+    this.baseDir = baseDir;
+    fs.mkdir(this.baseDir, { recursive: true }).catch(() => {});
+  }
+
   async fetch(remote: string): Promise<string> {
     try {
       const { stdout, stderr } = await execPromise(`git fetch ${remote}`);
@@ -109,15 +116,16 @@ export class GitService {
       throw new Error("Username and repository name are required to clone");
     }
     const repoUrl = `https://github.com/${username}/${repoName}.git`;
-    const repoPath = path.resolve(process.cwd(), repoName);
+    const repoPath = path.resolve(this.baseDir, repoName);
     try {
       const stat = await fs.stat(repoPath).catch(() => null);
       if (stat && stat.isDirectory()) {
-        return `Repository folder '${repoName}' already exists. Skipping clone.`;
+        // Force fresh clone by removing existing directory
+        await fs.rm(repoPath, { recursive: true, force: true });
       }
     } catch {}
     try {
-      const { stdout, stderr } = await execPromise(`git clone ${repoUrl}`);
+      const { stdout, stderr } = await execPromise(`git clone ${repoUrl}`, { cwd: this.baseDir });
       if (stderr && /fatal|error/i.test(stderr)) {
         throw new Error(stderr);
       }
@@ -129,7 +137,7 @@ export class GitService {
 
   async listFiles(repoName: string): Promise<string[]> {
     if (!repoName) return [];
-    const repoPath = path.resolve(process.cwd(), repoName);
+    const repoPath = path.resolve(this.baseDir, repoName);
     const exists = await fs.stat(repoPath).catch(() => null);
     if (!exists) return [];
     const out: string[] = [];
@@ -161,7 +169,7 @@ export class GitService {
     
     // Check if repo exists using fs.stat instead of shell command 'test -d'
     // 'test -d' fails on Windows cmd.exe
-    const repoPath = path.resolve(process.cwd(), repoName);
+    const repoPath = path.resolve(this.baseDir, repoName);
     try {
       const stat = await fs.stat(repoPath);
       if (!stat.isDirectory()) {
@@ -173,14 +181,14 @@ export class GitService {
 
     try {
       // First fetch
-      await execP(`git -C ${repoName} fetch origin`);
+      await execP(`git fetch origin`, { cwd: repoPath });
       
       // Then reset hard to match origin/main exactly
       // This ensures "what is in the repo remains" and discards local garbage/conflicts
-      await execP(`git -C ${repoName} reset --hard origin/main`);
+      await execP(`git reset --hard origin/main`, { cwd: repoPath });
       
       // Also clean untracked files to ensure "everything is forgotten" except what's in the repo
-      await execP(`git -C ${repoName} clean -fd`);
+      await execP(`git clean -fd`, { cwd: repoPath });
 
       // Rebuild index to match the new state
       await this.rebuildArticlesIndex(repoName);
@@ -193,7 +201,7 @@ export class GitService {
 
   async ensureArticlesDir(repoName: string): Promise<void> {
     if (!repoName) return;
-    const dir = path.resolve(process.cwd(), repoName, "articles");
+    const dir = path.resolve(this.baseDir, repoName, "articles");
     const stat = await fs.stat(dir).catch(() => null);
     if (!stat) {
       await fs.mkdir(dir, { recursive: true });
@@ -203,7 +211,7 @@ export class GitService {
   async listArticles(repoName: string): Promise<string[]> {
     if (!repoName) return [];
     await this.ensureArticlesDir(repoName);
-    const articlesDir = path.resolve(process.cwd(), repoName, "articles");
+    const articlesDir = path.resolve(this.baseDir, repoName, "articles");
     try {
       const entries = await fs.readdir(articlesDir, { withFileTypes: true });
       return entries
@@ -220,8 +228,8 @@ export class GitService {
       throw new Error("Repository and filename required");
     await this.ensureArticlesDir(repoName);
     // Check if it's a folder (new system) or file (old system)
-    const folderPath = path.resolve(process.cwd(), repoName, "articles", filename);
-    const filePath = path.resolve(process.cwd(), repoName, "articles", filename + ".md");
+    const folderPath = path.resolve(this.baseDir, repoName, "articles", filename);
+    const filePath = path.resolve(this.baseDir, repoName, "articles", filename + ".md");
     
     try {
       const stat = await fs.stat(folderPath).catch(() => null);
@@ -246,7 +254,7 @@ export class GitService {
       throw new Error("Repository and filename required");
     await this.ensureArticlesDir(repoName);
     
-    const folderPath = path.resolve(process.cwd(), repoName, "articles", filename);
+    const folderPath = path.resolve(this.baseDir, repoName, "articles", filename);
     
     try {
       // Ensure folder exists
@@ -270,7 +278,7 @@ export class GitService {
     const safeName = filename.replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
 
     await this.ensureArticlesDir(repoName);
-    const folderPath = path.resolve(process.cwd(), repoName, "articles", safeName);
+    const folderPath = path.resolve(this.baseDir, repoName, "articles", safeName);
     
     const exists = await fs.stat(folderPath).catch(() => null);
     if (exists) {
@@ -294,7 +302,7 @@ export class GitService {
   async saveAsset(repoName: string, articleId: string, fileName: string, fileData: Buffer): Promise<string> {
     if (!repoName || !articleId || !fileName) throw new Error("Missing params");
     
-    const assetsDir = path.resolve(process.cwd(), repoName, "articles", articleId, "assets");
+    const assetsDir = path.resolve(this.baseDir, repoName, "articles", articleId, "assets");
     try {
       await fs.mkdir(assetsDir, { recursive: true });
       
@@ -317,7 +325,7 @@ export class GitService {
   ): Promise<string> {
     if (!repoName || !filePath)
       throw new Error("Repository and file path required");
-    const fullPath = path.resolve(process.cwd(), repoName, filePath);
+    const fullPath = path.resolve(this.baseDir, repoName, filePath);
     const dir = path.dirname(fullPath);
     try {
       await fs.mkdir(dir, { recursive: true });
@@ -331,7 +339,7 @@ export class GitService {
   async readSiteFile(repoName: string, filePath: string): Promise<string> {
     if (!repoName || !filePath)
       throw new Error("Repository and file path required");
-    const fullPath = path.resolve(process.cwd(), repoName, filePath);
+    const fullPath = path.resolve(this.baseDir, repoName, filePath);
     try {
       const data = await fs.readFile(fullPath, "utf8");
       return data;
@@ -349,13 +357,13 @@ export class GitService {
     // Ensure directory exists, if not create it (handles empty repo case)
     await this.ensureArticlesDir(repoName);
     
-    const articlesDir = path.resolve(process.cwd(), repoName, "articles");
+    const articlesDir = path.resolve(this.baseDir, repoName, "articles");
     try {
       // If directory doesn't exist (should be handled by ensureArticlesDir but double check)
       const dirStat = await fs.stat(articlesDir).catch(() => null);
       if (!dirStat) {
           // If for some reason it's still missing, write empty index
-          const indexPath = path.resolve(process.cwd(), repoName, "articles.json");
+          const indexPath = path.resolve(this.baseDir, repoName, "articles.json");
           await fs.writeFile(indexPath, "[]", "utf8");
           return "Repo empty, initialized empty index.";
       }
@@ -426,7 +434,7 @@ export class GitService {
       articles.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       
       const indexContent = JSON.stringify(articles, null, 2);
-      const indexPath = path.resolve(process.cwd(), repoName, "articles.json");
+      const indexPath = path.resolve(this.baseDir, repoName, "articles.json");
       await fs.writeFile(indexPath, indexContent, "utf8");
       return `Rebuilt articles.json with ${articles.length} articles`;
     } catch (e: any) {
@@ -436,32 +444,33 @@ export class GitService {
 
   async getRepoPath(repoName: string): Promise<string> {
     if (!repoName) throw new Error("Repository name required");
-    return path.resolve(process.cwd(), repoName);
+    return path.resolve(this.baseDir, repoName);
   }
 
   async commitAndPush(repoName: string, message?: string): Promise<string> {
     if (!repoName) throw new Error("Repository name required");
+    const repoPath = path.resolve(this.baseDir, repoName);
     const commitMsg = message || `Update site ${new Date().toISOString()}`;
     try {
-      await execPromise(`git -C ${repoName} add .`);
+      await execPromise(`git add .`, { cwd: repoPath });
       const { stdout: diffOut } = await execPromise(
-        `git -C ${repoName} diff --cached --name-only`
+        `git diff --cached --name-only`, { cwd: repoPath }
       );
       if (!diffOut.trim()) {
         const pushRes = await execPromise(
-          `git -C ${repoName} push origin main`
+          `git push origin main`, { cwd: repoPath }
         );
         if (pushRes.stderr && /fatal|error/i.test(pushRes.stderr))
           throw new Error(pushRes.stderr);
         return pushRes.stdout || `No changes. Pushed ${repoName}.`;
       }
       const { stdout: commitOut, stderr: commitErr } = await execPromise(
-        `git -C ${repoName} commit -m "${commitMsg.replace(/"/g, '\\"')}"`
+        `git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: repoPath }
       );
       if (commitErr && /fatal|error/i.test(commitErr))
         throw new Error(commitErr);
       const { stdout: pushOut, stderr: pushErr } = await execPromise(
-        `git -C ${repoName} push origin main`
+        `git push origin main`, { cwd: repoPath }
       );
       if (pushErr && /fatal|error/i.test(pushErr)) throw new Error(pushErr);
       return `${commitOut}\n${pushOut}`.trim();

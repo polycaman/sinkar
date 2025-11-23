@@ -2,7 +2,8 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { join } from "path";
 import { GitService } from "./services/gitService";
 
-const gitService = new GitService();
+const projectsPath = join(app.getPath('documents'), 'SinkarProjects');
+const gitService = new GitService(projectsPath);
 
 function createWindow() {
   // Create splash window

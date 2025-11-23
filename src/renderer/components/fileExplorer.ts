@@ -21,6 +21,7 @@ function fileExplorerLogic() {
       if (!this.repoName) return;
       this.loading = true;
       try {
+        await (window as any).git.rebuildIndex(this.repoName);
         const list = await (window as any).git.listArticles(this.repoName);
         if (Array.isArray(list)) this.articles = list;
       } catch {
